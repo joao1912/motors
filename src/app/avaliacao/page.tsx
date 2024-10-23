@@ -1,62 +1,76 @@
 "use client";
 import React from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// Esquema de validação com zod
 const schema = z.object({
     brand: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+        .min(1, { message: 'Este campo é obrigatório.' })
+        .max(50, { message: 'A marca não pode ter mais que 50 caracteres.' }),
 
     model: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+        .min(1, { message: 'Este campo é obrigatório.' })
+        .max(100, { message: 'O modelo não pode ter mais que 100 caracteres.' }),
 
-    modelYear: z.preprocess(
-        (arg) => (arg === '' ? undefined : parseInt(arg as string)),
-        z.number()
-            .min(1900, { message: 'O ano deve ser maior que 1900.' })
-            .max(new Date().getFullYear(), { message: 'O ano não pode ser maior que o ano atual.' })
-            .nonnegative({ message: 'O ano não pode ser negativo.' })
-            .refine(value => value !== undefined && !isNaN(value), { message: 'Este campo é obrigatório.' })
-    ),
+    modelYear: z.number({
+        errorMap: () => {
+            return { message: "Este campo é obrigatório." }
+        }
+    })
+        .min(1900, { message: 'Deve ser maior que 1900.' })
+        .max(new Date().getFullYear(), { message: `Deve ser menor que ${new Date().getFullYear() + 1}.` })
+        .int({ message: 'Valor inválido.' }),
 
-    fabYear: z.preprocess(
-        (arg) => (arg === '' ? undefined : parseInt(arg as string)), // Converte o valor usando parseInt
-        z.number()
-            .min(1900, { message: 'O ano deve ser maior que 1900.' })
-            .max(new Date().getFullYear(), { message: 'O ano não pode ser maior que o ano atual.' })
-            .nonnegative({ message: 'O ano não pode ser negativo.' })
-            .refine(value => value !== undefined && !isNaN(value), { message: 'Este campo é obrigatório.' })
-    ),
+    fabYear: z.number({
+        errorMap: () => {
+            return { message: "Este campo é obrigatório." }
+        }
+    })
+        .min(1900, { message: 'Deve ser maior que 1900.' })
+        .max(new Date().getFullYear(), { message: `Deve ser menor que ${new Date().getFullYear() + 1}.` })
+        .int({ message: 'Valor inválido.' }),
 
     color: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+        .min(1, { message: 'Este campo é obrigatório.' })
+        .max(30, { message: 'A cor não pode ter mais que 30 caracteres.' }),
 
     fuelType: z.enum(['gasolina', 'etanol', 'flex', 'GNV', 'Diesel', 'outros'], {
-        required_error: 'Este campo é obrigatório.',
-        invalid_type_error: 'Selecione um tipo de combustível válido.'
+        errorMap: () => {
+            return { message: "Este campo é obrigatório." }
+        }
     }),
 
     name: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+        .min(1, { message: 'Este campo é obrigatório.' })
+        .max(100, { message: 'O nome não pode ter mais que 100 caracteres.' }),
 
-    telephone: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+    telephone: z.number({
+        errorMap: () => {
+            return { message: "Este campo é obrigatório." };
+        },
+    }).refine((value) => value.toString().length >= 10 && value.toString().length <= 15, {
+        message: 'O telefone deve ter entre 10 e 15 dígitos.',
+    }),
 
-    cellphone: z.string()
-        .min(1, { message: 'Este campo é obrigatório.' }),
+    cellphone: z.number({
+        errorMap: () => {
+            return { message: "Este campo é obrigatório." };
+        },
+    }).refine((value) => value.toString().length >= 11 && value.toString().length <= 15, {
+        message: 'O celular deve ter entre 11 e 15 dígitos.',
+    }),
 
-    email: z
-        .string()
-        .email({ message: 'Invalid email address' })
-        .min(1, { message: 'Este campo é obrigatório.' }),
+    email: z.string()
+        .email({ message: 'O e-mail deve ser válido.' })
+        .min(1, { message: 'Este campo é obrigatório.' })
+        .max(100, { message: 'O e-mail não pode ter mais que 100 caracteres.' }),
 
     info: z.string()
-        .max(120, "calma la meu fi, quer escrever a bribria?")
+        .max(120, { message: 'As informações adicionais não podem ter mais do que 120 caracteres.' })
+        .optional(),
 });
 
-// Inferir tipos do esquema
 type FormValues = z.infer<typeof schema>;
 
 const MyFormWithZod: React.FC = () => {
@@ -65,6 +79,8 @@ const MyFormWithZod: React.FC = () => {
         handleSubmit,
         formState: { errors },
     } = useForm<FormValues>({
+        mode: "all",
+        reValidateMode: "onChange",
         resolver: zodResolver(schema),
     });
 
@@ -103,32 +119,44 @@ const MyFormWithZod: React.FC = () => {
                             {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand.message}</p>}
                         </div>
 
-                        {/* Ano da Marca */}
-                        <div className='flex items-center gap-5 mb-6'>
-                            <div className='w-1/3 min-w-11 whitespace-nowrap'>
+                        <div className='flex items-start gap-5 mb-6'>
+                            {/* Ano da Fabricação */}
+                            <div className='flex flex-col w-1/3 min-w-11'>
                                 <label htmlFor="fabYear" className="block text-sm font-medium text-white pl-2">Ano da Fabricação</label>
                                 <input
                                     id="fabYear"
-                                    {...register('fabYear')}
+                                    {...register('fabYear', {
+                                        setValueAs: (value: string) => parseInt(value, 10),
+                                    })}
                                     className={`mt-1 block w-full p-2 border ${errors.fabYear ? 'border-red-500' : 'border-gray-300'} rounded-2xl text-black`}
-                                    type='number'
+                                    type="number"
                                 />
-                                {errors.fabYear && <p className="text-red-500 text-sm mt-1">{errors.fabYear.message}</p>}
+                                <p className={`text-red-500 text-sm mt-1 min-h-[1.25rem]`}>
+                                    {errors.fabYear ? errors.fabYear.message : ''}
+                                </p>
                             </div>
-                            <span className='text-white pt-6 text-3xl'>
-                                /
-                            </span>
-                            <div className='w-1/3 min-w-11 whitespace-nowrap'>
+
+                            {/* Barra separadora */}
+                            <span className='text-white self-center text-3xl'>/</span>
+
+                            {/* Ano do Modelo */}
+                            <div className='flex flex-col w-1/3 min-w-11'>
                                 <label htmlFor="modelYear" className="block text-sm font-medium text-white pl-2">Ano Do Modelo</label>
                                 <input
                                     id="modelYear"
-                                    {...register('modelYear')}
+                                    {...register('modelYear', {
+                                        setValueAs: (value: string) => parseInt(value, 10),
+                                    })}
                                     className={`mt-1 block w-full p-2 border ${errors.modelYear ? 'border-red-500' : 'border-gray-300'} rounded-2xl text-black`}
-                                    type='number'
+                                    type="number"
                                 />
-                                {errors.modelYear && <p className="text-red-500 text-sm mt-1">{errors.modelYear.message}</p>}
+                                <p className={`text-red-500 text-sm mt-1 min-h-[1.25rem]`}>
+                                    {errors.modelYear ? errors.modelYear.message : ''}
+                                </p>
                             </div>
                         </div>
+
+
 
                         {/* Modelo */}
                         <div className="mb-6">
@@ -194,8 +222,11 @@ const MyFormWithZod: React.FC = () => {
                             <label htmlFor="telephone" className="block text-sm font-medium text-white pl-3">Telefone</label>
                             <input
                                 id="telephone"
-                                {...register('telephone')}
+                                {...register('telephone', {
+                                    setValueAs: (value: string) => parseInt(value, 10),
+                                })}
                                 className={`mt-1 block w-8/12 p-2 border ${errors.telephone ? 'border-red-500' : 'border-gray-300'} rounded-2xl text-black`}
+                                type="number"
                             />
                             {errors.telephone && <p className="text-red-500 text-sm mt-1">{errors.telephone.message}</p>}
                         </div>
@@ -217,8 +248,11 @@ const MyFormWithZod: React.FC = () => {
                             <label htmlFor="cellphone" className="block text-sm font-medium text-white pl-3">Celular</label>
                             <input
                                 id="cellphone"
-                                {...register('cellphone')}
+                                {...register('cellphone', {
+                                    setValueAs: (value: string) => parseInt(value, 10),
+                                })}
                                 className={`mt-1 block w-8/12 p-2 border ${errors.cellphone ? 'border-red-500' : 'border-gray-300'} rounded-2xl text-black`}
+                                type="number"
                             />
                             {errors.cellphone && <p className="text-red-500 text-sm mt-1">{errors.cellphone.message}</p>}
                         </div>
